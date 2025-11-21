@@ -1,0 +1,5 @@
+{
+  "platform": "node",
+  "app": "spending-tracker",
+  "port": 3000
+}
