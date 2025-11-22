@@ -22,6 +22,8 @@ const generateCategoryPie = async (expenses) => {
     const labels = Object.keys(categoryMap);
     const data = Object.values(categoryMap);
 
+    console.log('✅✅✅', labels);
+
     if (labels.length === 0) return null;
 
     const chart = new QuickChart();
@@ -42,7 +44,7 @@ const generateCategoryPie = async (expenses) => {
             }
         }
     });
-    
+
     // Make image clearer
     chart.setWidth(500);
     chart.setHeight(300);
@@ -57,7 +59,7 @@ const generateCategoryPie = async (expenses) => {
 const generateDailyBar = async (expenses) => {
     // Aggregate data by Day (YYYY-MM-DD)
     const dayMap = {};
-    
+
     // Sort expenses by date first
     expenses.sort((a, b) => a.date - b.date);
 

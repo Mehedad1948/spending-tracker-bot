@@ -3,7 +3,8 @@ const mainMenu = {
     reply_markup: {
         inline_keyboard: [
             [
-                { text: '➕ Add Expense', callback_data: 'cmd_add_intro' }
+                { text: '➕ Add Expense', callback_data: 'cmd_add_intro' },
+                { text: '💰 Set Budget', callback_data: 'cmd_set_budget' } // <--- NEW BUTTON
             ],
             [
                 { text: '📅 Today', callback_data: 'report_today' },
@@ -11,12 +12,17 @@ const mainMenu = {
             ],
             [
                 { text: '📈 Last 10 Items', callback_data: 'report_last10' },
-                { text: '🗑 Reset/Clear', callback_data: 'cmd_clear_intro' }
+                { text: '📊 Visual Reports', callback_data: 'report_charts' }
             ],
-            [{ text: "📊 Visual Reports", callback_data: 'report_charts' }]
+            [
+                 { text: '🗑 Reset/Clear', callback_data: 'cmd_clear_intro' }
+            ]
         ]
     }
 };
+
+// ... (rest of the file remains the same)
+
 
 // Categories for Quick Selection (Optional fancy feature)
 const categoryMenu = {
