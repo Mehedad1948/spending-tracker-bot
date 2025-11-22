@@ -12,7 +12,8 @@ const mainMenu = {
             [
                 { text: '📈 Last 10 Items', callback_data: 'report_last10' },
                 { text: '🗑 Reset/Clear', callback_data: 'cmd_clear_intro' }
-            ]
+            ],
+            [{ text: "📊 Visual Reports", callback_data: 'report_charts' }]
         ]
     }
 };

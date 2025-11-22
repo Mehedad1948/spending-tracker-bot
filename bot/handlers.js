@@ -178,6 +178,37 @@ const initBot = () => {
             });
         }
 
+         if (data === 'report_charts') {
+            // 1. Fetch expenses for the current month (or last 30 days)
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1); 
+            startOfMonth.setHours(0,0,0,0);
+            
+            const expenses = await Expense.find({ 
+                chatId, 
+                date: { $gte: startOfMonth } 
+            });
+
+            if (expenses.length === 0) {
+                return bot.sendMessage(chatId, "📭 No data this month to generate charts.");
+            }
+
+            bot.sendMessage(chatId, "🎨 Generating your charts, please wait...");
+
+            // 2. Generate Pie Chart Image
+            const pieBuffer = await generateCategoryPie(expenses);
+            if (pieBuffer) {
+                await bot.sendPhoto(chatId, pieBuffer, { caption: '📊 **Spending by Category**' });
+            }
+
+            // 3. Generate Bar Chart Image
+            const barBuffer = await generateDailyBar(expenses);
+            if (barBuffer) {
+                await bot.sendPhoto(chatId, barBuffer, { caption: '📈 **Daily Spending Trend**' });
+            }
+        }
+
+
         // --- EDIT FLOW: ACTIONS ---
         // 1. Delete
         if (data.startsWith('edit_act_del_')) {
