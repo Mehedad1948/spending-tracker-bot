@@ -1,6 +1,6 @@
 const bot = require('./instance');
 const Expense = require('../models/Expense');
-const UserConfig = require('../models/UserConfig');
+const UserConfig = require('../models/UserConfig'); // <--- NEW IMPORT
 const { mainMenu, categoryMenu } = require('./keyboards');
 const { formatCurrency } = require('../utils/formatters');
 const { generateCategoryPie, generateDailyBar } = require('../utils/chartBuilder');
@@ -40,10 +40,10 @@ const checkBudgetStatus = async (chatId, newExpenseAmount) => {
     let alert = null;
 
     // Check Thresholds (Only alert if we just crossed the line)
-    if (prevPercent < 50 && currentPercent >= 50) alert = "⚠️ **هشتار:** شما از ۵۰٪ بودجه خود عبور کردید.";
-    else if (prevPercent < 75 && currentPercent >= 75) alert = "⚠️ **هشدار:** شما از ۷۵٪ بودجه خود عبور کردید.";
-    else if (prevPercent < 90 && currentPercent >= 90) alert = "🚨 **خطر:** شما ۹۰٪ بودجه خود را مصرف کرده‌اید!";
-    else if (prevPercent < 100 && currentPercent >= 100) alert = "⛔ **بحرانی:** سقف بودجه ماهانه رد شد!";
+    if (prevPercent < 50 && currentPercent >= 50) alert = "⚠️ **Alert:** You have passed 50% of your budget.";
+    else if (prevPercent < 75 && currentPercent >= 75) alert = "⚠️ **Alert:** You have passed 75% of your budget.";
+    else if (prevPercent < 90 && currentPercent >= 90) alert = "🚨 **WARNING:** You have passed 90% of your budget!";
+    else if (prevPercent < 100 && currentPercent >= 100) alert = "⛔ **CRITICAL:** Budget Exceeded!";
 
     return {
         percent: currentPercent.toFixed(1),
@@ -61,27 +61,27 @@ const initBot = () => {
     // --- WELCOME / HELP MESSAGE ---
     const sendWelcomeMessage = (chatId) => {
         const welcomeText = `
-👋 **به دستیار هوشمند مدیریت هزینه خوش آمدید!**
+👋 **Welcome to your Expense Tracker!**
 
-من به شما کمک می‌کنم هزینه‌های خود را ثبت کنید، بودجه‌بندی کنید و گزارش‌های مالی بگیرید.
+I can help you track your spending, set budgets, and visualize your finances.
 
-**🚀 روش‌های ثبت هزینه:**
-1️⃣ **دستی:** مبلغ و توضیحات را تایپ کنید.
-   • _مثال:_ \`50000 ناهار با علی\`
-   • _مثال:_ \`20000 اسنپ\`
+**🚀 HOW TO ADD EXPENSES:**
+1️⃣ **Manual:** Type the amount and description.
+   • _Example:_ \`50000 Lunch with Ali\`
+   • _Example:_ \`20000 Taxi\`
 
-2️⃣ **پیامک بانکی:** پیامک‌های برداشت وجه را برای من فوروارد کنید. من مبلغ را خودکار تشخیص می‌دهم!
+2️⃣ **Bank SMS:** Forward any bank withdrawal SMS to me. I will auto-detect the amount!
 
-**💰 مدیریت بودجه:**
-• یک سقف ماهانه تعیین کنید تا در صورت عبور از آن به شما هشدار دهم.
-• از دکمه **"تعیین بودجه"** در منو استفاده کنید.
+**💰 BUDGETING:**
+• Set a limit to get alerts when you overspend.
+• Use the **"Set Budget"** button in the menu.
 
-**📊 دستورات:**
-/start - منوی اصلی
-/budget - تنظیم سقف بودجه
-/help - نمایش راهنما
+**📊 COMMANDS:**
+/start - Open Main Menu
+/budget - Set monthly limit
+/help - Show this message
 
-👇 **از دکمه‌های زیر برای مشاهده گزارش‌ها استفاده کنید:**
+👇 **Use the buttons below to view reports:**
         `;
 
         // Reset state to ensure clean start
@@ -118,7 +118,7 @@ const initBot = () => {
                 { monthlyBudget: budget },
                 { upsert: true, new: true }
             );
-            return bot.sendMessage(chatId, `✅ **بودجه تنظیم شد!**\nسقف ماهانه: ${formatCurrency(budget)}`, { parse_mode: 'Markdown' });
+            return bot.sendMessage(chatId, `✅ **Budget Set!**\nLimit: ${formatCurrency(budget)}`, { parse_mode: 'Markdown' });
         }
 
         // Case B: User typed only "/budget" (Show current status)
@@ -126,9 +126,9 @@ const initBot = () => {
         const currentBudget = config ? config.monthlyBudget : 0;
 
         if (currentBudget > 0) {
-            bot.sendMessage(chatId, `📊 **بودجه فعلی شما:** ${formatCurrency(currentBudget)}\n\nبرای تغییر آن، دکمه "تعیین بودجه" را بزنید یا تایپ کنید:\n\`/budget 6000000\``, { parse_mode: 'Markdown' });
+            bot.sendMessage(chatId, `📊 **Current Budget:** ${formatCurrency(currentBudget)}\n\nTo change it, click "Set Budget" in the menu or type:\n\`/budget 6000000\``, { parse_mode: 'Markdown' });
         } else {
-            bot.sendMessage(chatId, `⚠️ **بودجه‌ای تنظیم نشده است.**\n\nبرای تنظیم، دکمه "تعیین بودجه" را بزنید یا تایپ کنید:\n\`/budget 5000000\``, { parse_mode: 'Markdown' });
+            bot.sendMessage(chatId, `⚠️ **No Budget Set.**\n\nTo set one, click "Set Budget" in the menu or type:\n\`/budget 5000000\``, { parse_mode: 'Markdown' });
         }
     });
 
@@ -148,7 +148,7 @@ const initBot = () => {
             const budget = parseFloat(text.replace(/,/g, ''));
 
             if (isNaN(budget) || budget <= 0) {
-                return bot.sendMessage(chatId, "⚠️ مبلغ نامعتبر است. لطفاً عددی مانند `5000000` وارد کنید:");
+                return bot.sendMessage(chatId, "⚠️ Invalid amount. Please type a number like `5000000`:");
             }
 
             await UserConfig.findOneAndUpdate(
@@ -158,28 +158,28 @@ const initBot = () => {
             );
 
             userState[chatId] = { step: 'IDLE' }; // Reset state
-            return bot.sendMessage(chatId, `✅ **بودجه بروزرسانی شد!**\nسقف ماهانه: ${formatCurrency(budget)}`, { parse_mode: 'Markdown', ...mainMenu });
+            return bot.sendMessage(chatId, `✅ **Budget Updated!**\nMonthly Limit: ${formatCurrency(budget)}`, { parse_mode: 'Markdown', ...mainMenu });
         }
 
 
         // --- EDIT MODE ---
         if (state.step === 'EDIT_AMOUNT') {
             const newAmount = parseFloat(text.replace(/,/g, ''));
-            if (isNaN(newAmount)) return bot.sendMessage(chatId, "⚠️ عدد نامعتبر است.");
+            if (isNaN(newAmount)) return bot.sendMessage(chatId, "⚠️ Invalid number.");
             await Expense.findByIdAndUpdate(state.editId, { amount: newAmount });
             userState[chatId] = { step: 'IDLE' };
-            return bot.sendMessage(chatId, `✅ مبلغ به ${formatCurrency(newAmount)} تغییر یافت.`, { ...mainMenu });
+            return bot.sendMessage(chatId, `✅ Amount updated to ${formatCurrency(newAmount)}`, { ...mainMenu });
         }
 
         if (state.step === 'EDIT_DESC') {
             await Expense.findByIdAndUpdate(state.editId, { description: text });
             userState[chatId] = { step: 'IDLE' };
-            return bot.sendMessage(chatId, `✅ توضیحات به "${text}" تغییر یافت.`, { ...mainMenu });
+            return bot.sendMessage(chatId, `✅ Description updated to: ${text}`, { ...mainMenu });
         }
 
         // --- NEW EXPENSE ENTRY ---
         let amount = 0;
-        let description = 'عمومی';
+        let description = 'General';
         let isAutoDetected = false;
 
         const firstWordClean = text.split(' ')[0].replace(/,/g, '');
@@ -192,7 +192,7 @@ const initBot = () => {
             const smsAmount = parseBankSms(text);
             if (smsAmount) {
                 amount = smsAmount;
-                description = "ثبت خودکار پیامک بانک";
+                description = "Bank SMS Auto-Import";
                 isAutoDetected = true;
             }
         }
@@ -204,12 +204,12 @@ const initBot = () => {
             };
 
             const msgText = isAutoDetected
-                ? `📩 **پیامک شناسایی شد!**\n💰 مبلغ: ${formatCurrency(amount)}\n📝 بابت: ${description}\n\nیک دسته‌بندی انتخاب کنید:`
-                : `💰 مبلغ: ${formatCurrency(amount)}\n📝 بابت: ${description}\n\nیک دسته‌بندی انتخاب کنید:`;
+                ? `📩 **SMS Detected!**\n💰 Amount: ${formatCurrency(amount)}\n📝 Desc: ${description}\n\nSelect a Category:`
+                : `💰 Amount: ${formatCurrency(amount)}\n📝 Desc: ${description}\n\nSelect a Category:`;
 
             await bot.sendMessage(chatId, msgText, { parse_mode: 'Markdown', ...categoryMenu });
         } else if (text.length < 20) {
-            bot.sendMessage(chatId, "⚠️ فرمت ناخوانا. تلاش کنید: `50000 ناهار`\nیا تنظیم بودجه با: `/budget 100000`");
+            bot.sendMessage(chatId, "⚠️ Unknown format. Try `50000 Food`\nor set budget with `/budget 100000`");
         }
     });
 
@@ -225,10 +225,10 @@ const initBot = () => {
         if (data.startsWith('cat_')) {
             const state = userState[chatId];
             if (!state || state.step !== 'WAIT_CATEGORY') {
-                return bot.sendMessage(chatId, "⚠️ نشست منقضی شده است. لطفا دوباره تلاش کنید.");
+                return bot.sendMessage(chatId, "⚠️ Session expired.");
             }
 
-            const category = data.split('_')[1]; // Note: Ensure categories in 'keyboards.js' match logic or are mapped properly
+            const category = data.split('_')[1];
             const { amount, description } = state.tempData;
 
             try {
@@ -238,11 +238,11 @@ const initBot = () => {
                 // --- BUDGET CHECK LOGIC ---
                 const budgetStatus = await checkBudgetStatus(chatId, amount);
 
-                let finalText = `✅ **ذخیره شد!**\n${formatCurrency(amount)} | ${description} | ${category}`;
+                let finalText = `✅ **Saved!**\n${formatCurrency(amount)} | ${description} | ${category}`;
 
                 // Add Budget Info if user has a budget set
                 if (budgetStatus) {
-                    finalText += `\n\n📊 **مصرف بودجه:** %${budgetStatus.percent}`;
+                    finalText += `\n\n📊 **Budget Used:** ${budgetStatus.percent}%`;
 
                     // Add Alert if threshold crossed
                     if (budgetStatus.alert) {
@@ -258,7 +258,7 @@ const initBot = () => {
 
             } catch (err) {
                 console.error(err);
-                bot.sendMessage(chatId, "❌ خطا در ذخیره هزینه.");
+                bot.sendMessage(chatId, "❌ Error saving expense.");
             }
         }
 
@@ -267,21 +267,23 @@ const initBot = () => {
             const startOfMonth = new Date();
             startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
             const expenses = await Expense.find({ chatId, date: { $gte: startOfMonth } });
+            console.log('🍎🍎 startOfMonth', startOfMonth);
+            console.log('🎮🎮 expenses', expenses);
 
-            if (expenses.length === 0) return bot.sendMessage(chatId, "📭 داده‌ای برای این ماه موجود نیست.");
+            if (expenses.length === 0) return bot.sendMessage(chatId, "📭 No data this month.");
 
-            bot.sendMessage(chatId, "📊 در حال تولید نمودارها...");
+            bot.sendMessage(chatId, "📊 Generating charts...");
             const pieBuffer = await generateCategoryPie(expenses);
-            if (pieBuffer) await bot.sendPhoto(chatId, pieBuffer, { caption: 'هزینه بر اساس دسته‌بندی' });
+            if (pieBuffer) await bot.sendPhoto(chatId, pieBuffer, { caption: 'Spending by Category' });
 
             const barBuffer = await generateDailyBar(expenses);
-            if (barBuffer) await bot.sendPhoto(chatId, barBuffer, { caption: 'روند هزینه روزانه' });
+            if (barBuffer) await bot.sendPhoto(chatId, barBuffer, { caption: 'Daily Spending Trend' });
         }
 
         // --- LAST 10 ---
         if (data === 'report_last10') {
             const expenses = await Expense.find({ chatId }).sort({ date: -1 }).limit(10);
-            if (expenses.length === 0) return bot.sendMessage(chatId, "📭 هزینه‌ای ثبت نشده است.");
+            if (expenses.length === 0) return bot.sendMessage(chatId, "📭 No expenses.");
 
             const inlineKeyboard = expenses.map((item) => {
                 return [{
@@ -289,7 +291,7 @@ const initBot = () => {
                     callback_data: `edit_sel_${item._id}`
                 }];
             });
-            bot.sendMessage(chatId, "✏️ **برای ویرایش یا حذف، روی آیتم بزنید:**", {
+            bot.sendMessage(chatId, "✏️ **Tap item to Edit/Delete:**", {
                 parse_mode: 'Markdown',
                 reply_markup: { inline_keyboard: inlineKeyboard }
             });
@@ -297,21 +299,21 @@ const initBot = () => {
 
         if (data === 'cmd_set_budget') {
             userState[chatId] = { step: 'WAIT_BUDGET' };
-            bot.sendMessage(chatId, "💰 **تنظیم بودجه ماهانه**\n\nلطفا کل مبلغ بودجه این ماه خود را تایپ کنید (مثلا: `5000000`):", { parse_mode: 'Markdown' });
+            bot.sendMessage(chatId, "💰 **Set Monthly Budget**\n\nPlease type your total budget limit for this month (e.g., `5000000`):", { parse_mode: 'Markdown' });
         }
 
         // --- EDITING ---
         if (data.startsWith('edit_sel_')) {
             const expenseId = data.split('_')[2];
             const item = await Expense.findById(expenseId);
-            if (!item) return bot.sendMessage(chatId, "❌ آیتم پیدا نشد.");
+            if (!item) return bot.sendMessage(chatId, "❌ Item not found.");
 
-            bot.sendMessage(chatId, `انتخاب شد: **${item.description}** (${formatCurrency(item.amount)})`, {
+            bot.sendMessage(chatId, `Selected: **${item.description}** (${formatCurrency(item.amount)})`, {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: "✏️ مبلغ", callback_data: `edit_act_amt_${expenseId}` }, { text: "📝 توضیحات", callback_data: `edit_act_desc_${expenseId}` }],
-                        [{ text: "🗑 حذف کردن", callback_data: `edit_act_del_${expenseId}` }]
+                        [{ text: "✏️ Amount", callback_data: `edit_act_amt_${expenseId}` }, { text: "📝 Desc", callback_data: `edit_act_desc_${expenseId}` }],
+                        [{ text: "🗑 DELETE", callback_data: `edit_act_del_${expenseId}` }]
                     ]
                 }
             });
@@ -319,31 +321,31 @@ const initBot = () => {
 
         if (data.startsWith('edit_act_del_')) {
             await Expense.findByIdAndDelete(data.split('_')[3]);
-            bot.sendMessage(chatId, "🗑 حذف شد.", { ...mainMenu });
+            bot.sendMessage(chatId, "🗑 Deleted.", { ...mainMenu });
         }
         if (data.startsWith('edit_act_amt_')) {
             userState[chatId] = { step: 'EDIT_AMOUNT', editId: data.split('_')[3] };
-            bot.sendMessage(chatId, "🔢 مبلغ جدید را وارد کنید:");
+            bot.sendMessage(chatId, "🔢 Enter new amount:");
         }
         if (data.startsWith('edit_act_desc_')) {
             userState[chatId] = { step: 'EDIT_DESC', editId: data.split('_')[3] };
-            bot.sendMessage(chatId, "📝 توضیحات جدید را وارد کنید:");
+            bot.sendMessage(chatId, "📝 Enter new description:");
         }
 
         if (data === 'cmd_clear_intro') {
-            bot.sendMessage(chatId, "🗑 **گزینه‌های حذف**\nچه چیزی را می‌خواهید پاک کنید؟", {
+            bot.sendMessage(chatId, "🗑 **Delete Options**\nWhat do you want to clear?", {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            { text: '📅 امروز', callback_data: 'ask_del_today' },
-                            { text: '🗓 این هفته', callback_data: 'ask_del_week' }
+                            { text: '📅 Today', callback_data: 'ask_del_today' },
+                            { text: '🗓 This Week', callback_data: 'ask_del_week' }
                         ],
                         [
-                            { text: '📆 این ماه', callback_data: 'ask_del_month' },
-                            { text: '🚨 همه چیز (پاکسازی کامل)', callback_data: 'ask_del_all' }
+                            { text: '📆 This Month', callback_data: 'ask_del_month' },
+                            { text: '🚨 EVERYTHING', callback_data: 'ask_del_all' }
                         ],
-                        [{ text: '🔙 انصراف', callback_data: 'act_clear_cancel' }]
+                        [{ text: '🔙 Cancel', callback_data: 'act_clear_cancel' }]
                     ]
                 }
             });
@@ -354,10 +356,10 @@ const initBot = () => {
             const type = data.split('_')[2]; // today, week, month, all
             let warningText = "";
 
-            if (type === 'today') warningText = "آیا مطمئنید که می‌خواهید هزینه‌های **امروز** را حذف کنید؟";
-            if (type === 'week') warningText = "آیا مطمئنید که می‌خواهید هزینه‌های **این هفته** را حذف کنید؟";
-            if (type === 'month') warningText = "آیا مطمئنید که می‌خواهید هزینه‌های **این ماه** را حذف کنید؟";
-            if (type === 'all') warningText = "⚠️ **خطر:** آیا مطمئنید که می‌خواهید **کل تاریخچه** را حذف کنید؟";
+            if (type === 'today') warningText = "Are you sure you want to delete **TODAY'S** expenses?";
+            if (type === 'week') warningText = "Are you sure you want to delete **THIS WEEK'S** expenses?";
+            if (type === 'month') warningText = "Are you sure you want to delete **THIS MONTH'S** expenses?";
+            if (type === 'all') warningText = "⚠️ **DANGER:** Are you sure you want to delete **ALL HISTORY**?";
 
             bot.editMessageText(warningText, {
                 chat_id: chatId,
@@ -365,8 +367,8 @@ const initBot = () => {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '✅ بله، حذف کن', callback_data: `act_del_${type}` }],
-                        [{ text: '🔙 انصراف', callback_data: 'act_clear_cancel' }]
+                        [{ text: '✅ YES, DELETE', callback_data: `act_del_${type}` }],
+                        [{ text: '🔙 Cancel', callback_data: 'act_clear_cancel' }]
                     ]
                 }
             });
@@ -383,7 +385,7 @@ const initBot = () => {
             if (type === 'today') {
                 now.setHours(0, 0, 0, 0);
                 query.date = { $gte: now };
-                timeDesc = "امروز";
+                timeDesc = "Today's";
             }
             else if (type === 'week') {
                 // Calculate start of week (assuming Sunday start)
@@ -393,35 +395,35 @@ const initBot = () => {
                 now.setHours(0, 0, 0, 0);
 
                 query.date = { $gte: now };
-                timeDesc = "این هفته";
+                timeDesc = "This Week's";
             }
             else if (type === 'month') {
                 now.setDate(1);
                 now.setHours(0, 0, 0, 0);
                 query.date = { $gte: now };
-                timeDesc = "این ماه";
+                timeDesc = "This Month's";
             }
             else if (type === 'all') {
                 // No date filter needed, it deletes everything for this chatId
-                timeDesc = "کل";
+                timeDesc = "ALL";
             }
 
             try {
                 const result = await Expense.deleteMany(query);
-                bot.sendMessage(chatId, `🗑 **حذف شد!**\nتعداد ${result.deletedCount} مورد از تاریخچه ${timeDesc} پاک شد.`, {
+                bot.sendMessage(chatId, `🗑 **Deleted!**\nRemoved ${result.deletedCount} items from ${timeDesc} history.`, {
                     parse_mode: 'Markdown',
                     ...mainMenu
                 });
             } catch (err) {
                 console.error(err);
-                bot.sendMessage(chatId, "❌ خطا در حذف اطلاعات.");
+                bot.sendMessage(chatId, "❌ Error deleting data.");
             }
         }
 
         // 4. Cancel Handler
         if (data === 'act_clear_cancel') {
             try { bot.deleteMessage(chatId, messageId); } catch (e) { }
-            bot.sendMessage(chatId, "✅ عملیات لغو شد.", { ...mainMenu });
+            bot.sendMessage(chatId, "✅ Operation cancelled.", { ...mainMenu });
         }
 
         // --- OTHER ---
@@ -429,18 +431,18 @@ const initBot = () => {
             const start = new Date(); start.setHours(0, 0, 0, 0);
             const expenses = await Expense.find({ chatId, date: { $gte: start } });
             const total = expenses.reduce((sum, i) => sum + i.amount, 0);
-            bot.sendMessage(chatId, `📅 **امروز:** ${formatCurrency(total)}`, { parse_mode: 'Markdown' });
+            bot.sendMessage(chatId, `📅 **Today:** ${formatCurrency(total)}`, { parse_mode: 'Markdown' });
         }
         if (data === 'report_month') {
             const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
             const expenses = await Expense.find({ chatId, date: { $gte: start } });
             const total = expenses.reduce((sum, i) => sum + i.amount, 0);
-            bot.sendMessage(chatId, `🗓 **این ماه:** ${formatCurrency(total)}`, { parse_mode: 'Markdown' });
+            bot.sendMessage(chatId, `🗓 **Month:** ${formatCurrency(total)}`, { parse_mode: 'Markdown' });
         }
-        if (data === 'cmd_add_intro') bot.sendMessage(chatId, "تایپ کنید: `50000 ناهار`\nیا تنظیم بودجه: `/budget 5000000`", { parse_mode: 'Markdown' });
+        if (data === 'cmd_add_intro') bot.sendMessage(chatId, "Type: `50000 Food`\nOr set budget: `/budget 5000000`", { parse_mode: 'Markdown' });
     });
 
-    console.log('🤖 Bot handlers loaded (Persian).');
+    console.log('🤖 Bot handlers loaded.');
 };
 
 module.exports = initBot;
