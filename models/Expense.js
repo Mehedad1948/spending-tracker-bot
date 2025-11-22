@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const expenseSchema = new mongoose.Schema({
   chatId: { type: Number, required: true },
   amount: { type: Number, required: true },
-  description: { type: String, default: 'General' },
+  description: { type: String, default: 'عمومی' },
   category: { type: String, default: 'Others' }, // New Feature
   date: { type: Date, default: Date.now }
 });
