@@ -56,29 +56,82 @@ const userState = {};
 
 const initBot = () => {
 
-    // 1. Handle /start command
+    // ... inside initBot() ...
+
+    // --- WELCOME / HELP MESSAGE ---
+    const sendWelcomeMessage = (chatId) => {
+        const welcomeText = `
+👋 **Welcome to your Expense Tracker!**
+
+I can help you track your spending, set budgets, and visualize your finances.
+
+**🚀 HOW TO ADD EXPENSES:**
+1️⃣ **Manual:** Type the amount and description.
+   • _Example:_ \`50000 Lunch with Ali\`
+   • _Example:_ \`20000 Taxi\`
+
+2️⃣ **Bank SMS:** Forward any bank withdrawal SMS to me. I will auto-detect the amount!
+
+**💰 BUDGETING:**
+• Set a limit to get alerts when you overspend.
+• Use the **"Set Budget"** button in the menu.
+
+**📊 COMMANDS:**
+/start - Open Main Menu
+/budget - Set monthly limit
+/help - Show this message
+
+👇 **Use the buttons below to view reports:**
+        `;
+
+        // Reset state to ensure clean start
+        userState[chatId] = { step: 'IDLE' };
+
+        bot.sendMessage(chatId, welcomeText, {
+            parse_mode: 'Markdown',
+            ...mainMenu // This attaches the buttons
+        });
+    };
+
+    // 1. Handle /start
     bot.onText(/\/start/, (msg) => {
-        userState[msg.chat.id] = { step: 'IDLE' };
-        bot.sendMessage(
-            msg.chat.id,
-            `👋 **Welcome to ExpenseTracker!**\n\n1. To set a budget, type:\n/budget 5000000\n\n2. To add expense, type amount:\n50000 Lunch`,
-            { parse_mode: 'Markdown', ...mainMenu }
-        );
+        sendWelcomeMessage(msg.chat.id);
     });
 
-    // 2. Handle /budget Command
-    bot.onText(/\/budget (\d+)/, async (msg, match) => {
+    // 2. Handle /help
+    bot.onText(/\/help/, (msg) => {
+        sendWelcomeMessage(msg.chat.id);
+    });
+
+
+    // 3. Handle /budget (Smart Handler)
+    // Matches "/budget" AND "/budget 50000"
+    bot.onText(/\/budget\s*(\d*)/, async (msg, match) => {
         const chatId = msg.chat.id;
-        const budget = parseFloat(match[1]);
+        const amountInput = match[1]; // The number part
 
-        await UserConfig.findOneAndUpdate(
-            { chatId },
-            { monthlyBudget: budget },
-            { upsert: true, new: true }
-        );
+        // Case A: User typed "/budget 500000" (Set it immediately)
+        if (amountInput) {
+            const budget = parseFloat(amountInput);
+            await UserConfig.findOneAndUpdate(
+                { chatId },
+                { monthlyBudget: budget },
+                { upsert: true, new: true }
+            );
+            return bot.sendMessage(chatId, `✅ **Budget Set!**\nLimit: ${formatCurrency(budget)}`, { parse_mode: 'Markdown' });
+        }
 
-        bot.sendMessage(chatId, `✅ **Monthly Budget Set!**\nLimit: ${formatCurrency(budget)}`, { parse_mode: 'Markdown' });
+        // Case B: User typed only "/budget" (Show current status)
+        const config = await UserConfig.findOne({ chatId });
+        const currentBudget = config ? config.monthlyBudget : 0;
+
+        if (currentBudget > 0) {
+            bot.sendMessage(chatId, `📊 **Current Budget:** ${formatCurrency(currentBudget)}\n\nTo change it, click "Set Budget" in the menu or type:\n\`/budget 6000000\``, { parse_mode: 'Markdown' });
+        } else {
+            bot.sendMessage(chatId, `⚠️ **No Budget Set.**\n\nTo set one, click "Set Budget" in the menu or type:\n\`/budget 5000000\``, { parse_mode: 'Markdown' });
+        }
     });
+
 
     // 3. Handle Text Messages
     bot.on('message', async (msg) => {
@@ -328,25 +381,25 @@ const initBot = () => {
             let timeDesc = "";
 
             const now = new Date();
-            
+
             if (type === 'today') {
-                now.setHours(0,0,0,0);
+                now.setHours(0, 0, 0, 0);
                 query.date = { $gte: now };
                 timeDesc = "Today's";
-            } 
+            }
             else if (type === 'week') {
                 // Calculate start of week (assuming Sunday start)
                 const day = now.getDay(); // 0 (Sun) to 6 (Sat)
-                const diff = now.getDate() - day; 
-                now.setDate(diff); 
-                now.setHours(0,0,0,0);
-                
+                const diff = now.getDate() - day;
+                now.setDate(diff);
+                now.setHours(0, 0, 0, 0);
+
                 query.date = { $gte: now };
                 timeDesc = "This Week's";
             }
             else if (type === 'month') {
                 now.setDate(1);
-                now.setHours(0,0,0,0);
+                now.setHours(0, 0, 0, 0);
                 query.date = { $gte: now };
                 timeDesc = "This Month's";
             }
@@ -357,9 +410,9 @@ const initBot = () => {
 
             try {
                 const result = await Expense.deleteMany(query);
-                bot.sendMessage(chatId, `🗑 **Deleted!**\nRemoved ${result.deletedCount} items from ${timeDesc} history.`, { 
-                    parse_mode: 'Markdown', 
-                    ...mainMenu 
+                bot.sendMessage(chatId, `🗑 **Deleted!**\nRemoved ${result.deletedCount} items from ${timeDesc} history.`, {
+                    parse_mode: 'Markdown',
+                    ...mainMenu
                 });
             } catch (err) {
                 console.error(err);
@@ -369,7 +422,7 @@ const initBot = () => {
 
         // 4. Cancel Handler
         if (data === 'act_clear_cancel') {
-            try { bot.deleteMessage(chatId, messageId); } catch(e) {}
+            try { bot.deleteMessage(chatId, messageId); } catch (e) { }
             bot.sendMessage(chatId, "✅ Operation cancelled.", { ...mainMenu });
         }
 
