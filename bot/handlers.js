@@ -219,12 +219,12 @@ const initBot = () => {
 
             if (expenses.length === 0) return bot.sendMessage(chatId, "📭 No data this month.");
 
-            bot.sendMessage(chatId, "🎨 Generating charts...");
+            bot.sendMessage(chatId, "📊 Generating charts...");
             const pieBuffer = await generateCategoryPie(expenses);
-            if (pieBuffer) await bot.sendPhoto(chatId, pieBuffer, { caption: '📊 **Spending by Category**' });
+            if (pieBuffer) await bot.sendPhoto(chatId, pieBuffer, { caption: 'Spending by Category' });
 
             const barBuffer = await generateDailyBar(expenses);
-            if (barBuffer) await bot.sendPhoto(chatId, barBuffer, { caption: '📈 **Daily Spending Trend**' });
+            if (barBuffer) await bot.sendPhoto(chatId, barBuffer, { caption: 'Daily Spending Trend' });
         }
 
         // --- LAST 10 ---
@@ -277,6 +277,100 @@ const initBot = () => {
         if (data.startsWith('edit_act_desc_')) {
             userState[chatId] = { step: 'EDIT_DESC', editId: data.split('_')[3] };
             bot.sendMessage(chatId, "📝 Enter new description:");
+        }
+
+        if (data === 'cmd_clear_intro') {
+            bot.sendMessage(chatId, "🗑 **Delete Options**\nWhat do you want to clear?", {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '📅 Today', callback_data: 'ask_del_today' },
+                            { text: '🗓 This Week', callback_data: 'ask_del_week' }
+                        ],
+                        [
+                            { text: '📆 This Month', callback_data: 'ask_del_month' },
+                            { text: '🚨 EVERYTHING', callback_data: 'ask_del_all' }
+                        ],
+                        [{ text: '🔙 Cancel', callback_data: 'act_clear_cancel' }]
+                    ]
+                }
+            });
+        }
+
+        // 2. Confirmation Step: "Are you sure?"
+        if (data.startsWith('ask_del_')) {
+            const type = data.split('_')[2]; // today, week, month, all
+            let warningText = "";
+
+            if (type === 'today') warningText = "Are you sure you want to delete **TODAY'S** expenses?";
+            if (type === 'week') warningText = "Are you sure you want to delete **THIS WEEK'S** expenses?";
+            if (type === 'month') warningText = "Are you sure you want to delete **THIS MONTH'S** expenses?";
+            if (type === 'all') warningText = "⚠️ **DANGER:** Are you sure you want to delete **ALL HISTORY**?";
+
+            bot.editMessageText(warningText, {
+                chat_id: chatId,
+                message_id: messageId,
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '✅ YES, DELETE', callback_data: `act_del_${type}` }],
+                        [{ text: '🔙 Cancel', callback_data: 'act_clear_cancel' }]
+                    ]
+                }
+            });
+        }
+
+        // 3. Execution Step: Actually Delete from DB
+        if (data.startsWith('act_del_')) {
+            const type = data.split('_')[2];
+            let query = { chatId }; // Default: matches user
+            let timeDesc = "";
+
+            const now = new Date();
+            
+            if (type === 'today') {
+                now.setHours(0,0,0,0);
+                query.date = { $gte: now };
+                timeDesc = "Today's";
+            } 
+            else if (type === 'week') {
+                // Calculate start of week (assuming Sunday start)
+                const day = now.getDay(); // 0 (Sun) to 6 (Sat)
+                const diff = now.getDate() - day; 
+                now.setDate(diff); 
+                now.setHours(0,0,0,0);
+                
+                query.date = { $gte: now };
+                timeDesc = "This Week's";
+            }
+            else if (type === 'month') {
+                now.setDate(1);
+                now.setHours(0,0,0,0);
+                query.date = { $gte: now };
+                timeDesc = "This Month's";
+            }
+            else if (type === 'all') {
+                // No date filter needed, it deletes everything for this chatId
+                timeDesc = "ALL";
+            }
+
+            try {
+                const result = await Expense.deleteMany(query);
+                bot.sendMessage(chatId, `🗑 **Deleted!**\nRemoved ${result.deletedCount} items from ${timeDesc} history.`, { 
+                    parse_mode: 'Markdown', 
+                    ...mainMenu 
+                });
+            } catch (err) {
+                console.error(err);
+                bot.sendMessage(chatId, "❌ Error deleting data.");
+            }
+        }
+
+        // 4. Cancel Handler
+        if (data === 'act_clear_cancel') {
+            try { bot.deleteMessage(chatId, messageId); } catch(e) {}
+            bot.sendMessage(chatId, "✅ Operation cancelled.", { ...mainMenu });
         }
 
         // --- OTHER ---
